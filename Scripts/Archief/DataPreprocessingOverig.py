@@ -5,13 +5,7 @@ path_json = work_directory + "/data/n2000_project/training_images/manueel_gras/g
 
 # List all files in training data 
 files = os.listdir(path_cir_data)
-# fill list of IDS which had been selected for training
-id_list = []
-for file in files:
-    if file.endswith('.tif'):
-        img_id = file.split("_")[0]
-        if img_id not in id_list:
-            id_list.append(img_id)
+
             
             
 # Copy images and masks of 2016 and 2017 to new folder
@@ -23,7 +17,14 @@ for file in files:
             dest_path = path_original_data + "/" + file
             image_copy = shutil.copy(file_path,dest_path)
 
-            
+# fill list of IDS which had been selected for training
+id_list = []
+for file in files:
+    if file.endswith('.tif'):
+        img_id = file.split("_")[0]
+        if img_id not in id_list:
+            id_list.append(img_id)
+
 id_list = list(map(int, id_list))
 id_list.sort()
 # Read bounding boxes from  json and download RGB images

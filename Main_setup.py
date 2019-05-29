@@ -19,28 +19,24 @@ from keras import backend as keras
 from matplotlib import pyplot
 os.chdir(work_directory)
 
-
 # Set variables and directories
 image_size = (256, 256) 
 cell_size = 0.25 
 epsg = 28992   
 wms = WebMapService('https://geodata.nationaalgeoregister.nl/luchtfoto/rgb/wms?&request=GetCapabilities&service=WMS')
-#wms = WebMapService('https://geodata.nationaalgeoregister.nl/luchtfoto/infrarood/wms?&request=GetCapabilities&service=WMS')
-path_training_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/training_corrected"
-path_mask_data_binair = work_directory+ "/data/n2000_project/training_images/gras_manueel_ahn/binary_mask"
-path_mask_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/mask"
-path_cir_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/training_cir"
-path_rgb_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/training_rgb"
-folder_checkpoints = work_directory
+wms_ir = WebMapService('https://geodata.nationaalgeoregister.nl/luchtfoto/infrarood/wms?&request=GetCapabilities&service=WMS')
+# path_training_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/training_corrected"
+# path_mask_data_binair = work_directory+ "/data/n2000_project/training_images/gras_manueel_ahn/binary_mask"
+# path_mask_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/mask"
+# path_cir_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/training_cir"
+# path_rgb_data = work_directory + "/data/n2000_project/training_images/gras_manueel_ahn/training_rgb"
+# folder_checkpoints = work_directory
 
 # Create N2000_Data object
-dc = N2000_Data(wms = wms, image_size = image_size, cell_size = cell_size, epsg = epsg)
-
-wms2 = WebMapService('https://geodata.nationaalgeoregister.nl/luchtfoto/infrarood/wms?&request=GetCapabilities&service=WMS')
-dc2 = N2000_Data(wms = wms2, image_size = image_size, cell_size = cell_size, epsg = epsg)
+dc = N2000_Data(image_size = image_size, cell_size = cell_size, epsg = epsg)
 
 # Create N2000_DataPreparation object
-dp = N2000_DataPreparation(image_size = image_size, path_training_data = path_training_data, path_mask_data = path_mask_data_binair, path_original_data = path_rgb_data)
+dp = N2000_DataPreparation(image_size = image_size)
 
 # Data aquisition
 # - Download aerial images based on known polygons
@@ -48,7 +44,6 @@ dp = N2000_DataPreparation(image_size = image_size, path_training_data = path_tr
 # - Create and rename check images
 # - Create folder of valid training images with corresponding raster mask
 # - Save image data (bounding boxes) to JSON 
-
 
 # RUN FUNCTIONS #
 #shapeLocation = work_directory + "/data/n2000_project/shape/gras_manueel_ahn_2016.shp"
@@ -155,9 +150,6 @@ with open(folder_checkpoints + '/Run1_trainHistory', 'wb') as file_pi:
 # with open('file.json', 'w') as f:
 #     json.dump(history.history, f)
 
-
-
-
 # evaluate the model
 _, train_acc = model.evaluate(x_train_total, y_train_total, verbose=0)
 _, test_acc = model.evaluate(x_test, y_test, verbose=0)
@@ -175,80 +167,6 @@ pyplot.show()
 scores = model.evaluate(x_train_total, y_train_total, verbose=0)
 print("%s: %.2f%%" % (model.metrics_names[1], scores[1]*100))
 
-
-# DOWNLOAD AHN3
-wms = "https://geodata.nationaalgeoregister.nl/ahn3/wms"
-dsm = 'ahn3_05m_dsm'
-dtm = 'ahn3_05m_dtm'
-
-
-proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()     
-
-# Loop trough the bounding box coordinates of training images need to be downloaded
-for i in range(len(bb_image_patches)):
-    print(str(i) + " out of: " + str(len(bb_image_patches)))
-    if ir == False:
-        if '2018' in years:
-            img_2018 = self.wms.getmap(layers=[dsm], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
-        if '2017' in years:
-            img_2017 = self.wms.getmap(layers=['2017_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-        if '2016' in years:
-            img_2016 = self.wms.getmap(layers=['2016_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-    else:
-        if '2018' in years:
-            img_2018 = self.wms.getmap(layers=['2018_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
-        if '2017' in years:
-            img_2017 = self.wms.getmap(layers=['2017_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-        if '2016' in years: 
-            img_2016 = self.wms.getmap(layers=['2016_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-
-
-    # Define filenames
-    filename_2018 = store_path + "/" + str(i) + "_2018_" + name + ".tif"  
-    filename_2017 = store_path + "/" + str(i) + "_2017_" + name + ".tif"      
-    filename_2016 = store_path + "/" + str(i) + "_2016_" + name + ".tif"      
-
-    # Write images disk (as tiff files with spatial information)
-    files = []
-    if '2018' in years:
-        out = open(filename_2018, 'wb')
-        out.write(img_2018.read())
-        out.close()  
-        files.append(filename_2018)
-    if '2017' in years:
-        out = open(filename_2017, 'wb')
-        out.write(img_2017.read())
-        out.close()
-        files.append(filename_2017)
-    if '2016' in years: 
-        out = open(filename_2016, 'wb')
-        out.write(img_2016.read())
-        out.close() 
-        files.append(filename_2016)
-
-    # List written files, update projetion and move tile to spatial position
-    for file in files:
-        # SET PROJECTION AND MOVE TILE TO POSITION #
-        dataset = gdal.Open(file,1)
-
-        # Get raster projection
-        srs = osr.SpatialReference()
-        srs.ImportFromEPSG(self.epsg)
-        dest_wkt = srs.ExportToWkt()
-
-        # Set projection
-        dataset.SetProjection(dest_wkt)
-
-        gt =  dataset.GetGeoTransform()
-        gtl = list(gt)
-        gtl[0] = bb_image_patches[i][0]
-        gtl[1] = self.cell_size
-        gtl[3] = bb_image_patches[i][3]
-        gtl[5] = (-1 * self.cell_size)
-        dataset.SetGeoTransform(tuple(gtl))
-        dataset = None    
-
-
 # serialize model to JSON
 model_json = model.to_json()
 with open("model.json", "w") as json_file:
@@ -260,3 +178,55 @@ print("Saved model to disk")
 
 model = unet_multiclass(n_classes = 2, input_size = (256, 256, 3), drop_out = 0.2, lr = 0.00005)
 model.summary()
+
+
+
+
+
+
+### DOWNLOAD DIGITAL SURFACE MODEL AND DIGITAL TERRAIN MODEL BASED ON EXISTING BOUNDING BOXES ###
+dsm = 'ahn3_05m_dsm'
+dtm = 'ahn3_05m_dtm'
+json_file = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/grasManueel256pxIR.json"
+image_dir = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/training_corrected"
+bounding_boxes, ids = dp.getBoundingBoxesofImages(json_file = json_file, image_dir = image_dir)
+dest_folder = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/dsm"
+url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs"
+for i in range(len(ids)):
+    name = f"{ids[i]}_unknown_Ahn256px"
+    bb = bounding_boxes[i]
+    dc.downloadAhn3Images(server = url, layer = dsm, bounding_box = bb, dest_folder = dest_folder, name = name)
+
+dest_folder = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/dtm"
+for i in range(len(ids)):
+    name = f"{ids[i]}_unknown_Ahn256px"
+    bb = bounding_boxes[i]
+    dc.downloadAhn3Images(server = url, layer = dtm, bounding_box = bb, dest_folder = dest_folder, name = name)
+
+
+### CALCULATE VEGETATION HEIGHT ###
+name = "unknown_vegetationHeight"
+dest_path = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/height"
+dtm_path = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/dtm"
+dsm_path = work_directory + "/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/dsm"
+dc.calculateHeight(dsm_path, dtm_path, dest_path, name)
+
+### READ HEIGHT IMAGES IN 3 DIMENSIONAL NUMPY ARRAY ###
+tiles = os.listdir(dest_path)
+array_list = []
+for tile in tiles:
+    tile_path = f"{dest_path}/{tile}"
+    array = rio.open(tile_path, 'r').read()    
+    array_list.append(array)
+# Resulting array (3 dimensional)
+result_array = np.concatenate(array_list)
+
+### NORMALIZE TRAINING DATA ###
+x_train, stats = dp.NormalizeTrainingDataMinMax(result_array, dest_path, "normalizationStatsVegetationHeight.csv")   
+
+### CREATE IMAGE OF 5 CHANNELS ###
+
+### CALCULATE SLOPE AND ASPECT ###
+
+### CREATE IMAGE OF 7 CHANNELS ###
+    

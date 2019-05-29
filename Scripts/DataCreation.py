@@ -21,12 +21,13 @@ from affine import Affine
 from rasterio.plot import show
 import tarfile
 import json
+import requests
+from PIL import Image
+from io import BytesIO
 
-class N2000_Data(): 
-    
+class N2000_Data():     
     #instance variables
-    def __init__(self, wms, image_size, cell_size, epsg):
-        self.wms = wms
+    def __init__(self, image_size, cell_size, epsg):
         self.image_size = image_size
         self.cell_size = cell_size
         self.epsg = epsg
@@ -49,11 +50,7 @@ class N2000_Data():
             area = x_meter * y_meter
             bounding_box_areas.append(area)         
         return(bounding_box_list, bounding_box_areas) 
-    
-    
-    
-    
-    
+
     def createImageBoundingBoxes(self, bounding_box_list, bounding_box_areas):
         bb_image_patches = []
         # Calculate the number of samples (training images) per habitat bounding box
@@ -118,73 +115,87 @@ class N2000_Data():
         return (bb_image_patches)
     
     
-    def downloadTrainingImages(self, bb_image_patches, store_path, name = "image", ir = False, years = ['2016','2017','2018']):
+    def downloadTrainingImages(self, bounding_box, server, layer, store_path, name = "image"):
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
         proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()
         
         # Loop trough the bounding box coordinates of training images need to be downloaded
-        for i in range(len(bb_image_patches)):
-            print(str(i) + " out of: " + str(len(bb_image_patches)))
-            if ir == False:
-                if '2018' in years:
-                    img_2018 = self.wms.getmap(layers=['2018_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
-                if '2017' in years:
-                    img_2017 = self.wms.getmap(layers=['2017_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-                if '2016' in years:
-                    img_2016 = self.wms.getmap(layers=['2016_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-            else:
-                if '2018' in years:
-                    img_2018 = self.wms.getmap(layers=['2018_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
-                if '2017' in years:
-                    img_2017 = self.wms.getmap(layers=['2017_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-                if '2016' in years: 
-                    img_2016 = self.wms.getmap(layers=['2016_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-                
+        # for i in range(len(bb_image_patches)):
+        #print(str(i) + " out of: " + str(len(bb_image_patches)))
+        # Layers: 2018_ortho25, 2017_ortho25, 2016_ortho25, 2018_ortho25IR, 2017_ortho25IR, 2016_ortho25IR
+        wms = WebMapService(server)
+        data = wms.getmap(layers=[layer], styles=[], srs=('EPSG:'+str(self.epsg)), crs=('EPSG:'+str(self.epsg)), bbox=bounding_box,  size=self.image_size, format='image/tiff', transparent=True, stream = True) 
 
-            # Define filenames
-            filename_2018 = store_path + "/" + str(i) + "_2018_" + name + ".tif"  
-            filename_2017 = store_path + "/" + str(i) + "_2017_" + name + ".tif"      
-            filename_2016 = store_path + "/" + str(i) + "_2016_" + name + ".tif"      
+            # if ir == False:
+            #     if '2018' in years:
+            #         img_2018 = wms.getmap(layers=['2018_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
+            #     if '2017' in years:
+            #         img_2017 = wms.getmap(layers=['2017_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
+            #     if '2016' in years:
+            #         img_2016 = wms.getmap(layers=['2016_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
+            # else:
+            #     if '2018' in years:
+            #         img_2018 = wms.getmap(layers=['2018_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
+            #     if '2017' in years:
+            #         img_2017 = wms.getmap(layers=['2017_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
+            #     if '2016' in years: 
+            #         img_2016 = wms.getmap(layers=['2016_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
+                
+        # Define filenames
+        filename = store_path + "/" + name + ".tif"  
+        #filename_2017 = store_path + "/" + str(i) + "_2017_" + name + ".tif"      
+        #filename_2016 = store_path + "/" + str(i) + "_2016_" + name + ".tif"      
 
-            # Write images disk (as tiff files with spatial information)
-            files = []
-            if '2018' in years:
-                out = open(filename_2018, 'wb')
-                out.write(img_2018.read())
-                out.close()  
-                files.append(filename_2018)
-            if '2017' in years:
-                out = open(filename_2017, 'wb')
-                out.write(img_2017.read())
-                out.close()
-                files.append(filename_2017)
-            if '2016' in years: 
-                out = open(filename_2016, 'wb')
-                out.write(img_2016.read())
-                out.close() 
-                files.append(filename_2016)
-                
-            # List written files, update projetion and move tile to spatial position
-            for file in files:
-                # SET PROJECTION AND MOVE TILE TO POSITION #
-                dataset = gdal.Open(file,1)
-                
-                # Get raster projection
-                srs = osr.SpatialReference()
-                srs.ImportFromEPSG(self.epsg)
-                dest_wkt = srs.ExportToWkt()
-                
-                # Set projection
-                dataset.SetProjection(dest_wkt)
-                
-                gt =  dataset.GetGeoTransform()
-                gtl = list(gt)
-                gtl[0] = bb_image_patches[i][0]
-                gtl[1] = self.cell_size
-                gtl[3] = bb_image_patches[i][3]
-                gtl[5] = (-1 * self.cell_size)
-                dataset.SetGeoTransform(tuple(gtl))
-                dataset = None                
+        out = open(filename, 'wb')
+        out.write(data.read())
+        out.close()  
+        #files.append(filename_2018)
+
+        transform = Affine(self.cell_size, 0.0, bounding_box[0], 0.0, -self.cell_size, bounding_box[3])
+        with rio.open(filename, mode = 'r+') as src:
+            src.transform = transform
+            src.crs = crs
+            src.close()
+
+        # Write images disk (as tiff files with spatial information)
+        # files = []
+        # if '2018' in years:
+        #     out = open(filename_2018, 'wb')
+        #     out.write(img_2018.read())
+        #     out.close()  
+        #     files.append(filename_2018)
+        # if '2017' in years:
+        #     out = open(filename_2017, 'wb')
+        #     out.write(img_2017.read())
+        #     out.close()
+        #     files.append(filename_2017)
+        # if '2016' in years: 
+        #     out = open(filename_2016, 'wb')
+        #     out.write(img_2016.read())
+        #     out.close() 
+        #     files.append(filename_2016)
+            
+        # List written files, update projetion and move tile to spatial position
+        # for file in files:
+        #     # SET PROJECTION AND MOVE TILE TO POSITION #
+        #     dataset = gdal.Open(file,1)
+            
+        #     # Get raster projection
+        #     srs = osr.SpatialReference()
+        #     srs.ImportFromEPSG(self.epsg)
+        #     dest_wkt = srs.ExportToWkt()
+            
+        #     # Set projection
+        #     dataset.SetProjection(dest_wkt)
+            
+        #     gt =  dataset.GetGeoTransform()
+        #     gtl = list(gt)
+        #     gtl[0] = bb_image_patches[i][0]
+        #     gtl[1] = self.cell_size
+        #     gtl[3] = bb_image_patches[i][3]
+        #     gtl[5] = (-1 * self.cell_size)
+        #     dataset.SetGeoTransform(tuple(gtl))
+        #     dataset = None                
             
 # THIS CODE DOES THE SAME AS THE CODE ABOVE BUT USES RASTERIO INSTEAD OF OGR/GDAL            
 #             for file in files:          
@@ -193,6 +204,82 @@ class N2000_Data():
 #                     src.transform = transform
 #                     src.crs = crs
 #                     src.close()
+
+    def downloadAhn3Images(self, server, layer, bounding_box, dest_folder, name = 'unknown_ahn3'):
+        bb_param = f"{bounding_box[0]},{bounding_box[1]},{bounding_box[2]},{bounding_box[3]}"
+        serviceUrl = f"{server}?service=wcs&request=GetCoverage&format=geotiff_float32&BoundingBox={bb_param},urn:ogc:def:crs:EPSG::{str(self.epsg)}&width={str(self.image_size[0])}&height={str(self.image_size[0])}&version=1.0.0&coverage={layer}"
+        
+        with requests.Session() as session:
+            try:
+                response = session.get(serviceUrl, headers={'Content-type': "image/tif"})
+
+                if response.status_code == 200:
+                    result = Image.open(BytesIO(response.content))
+                    if result is not None:
+                        if result.mode == 'P':
+                            result = result.convert('RGB')
+            except Exception as ex:
+                    raise ex
+
+        result = np.array(result)
+        crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
+        transform = Affine(self.cell_size, 0.0, bounding_box[0], 0.0, -self.cell_size, bounding_box[3])
+        filename = dest_folder + "/" + name + ".tif"  
+        meta = {'driver': 'GTiff', 'dtype': 'float32', 'nodata': None, 'width': self.image_size[0], 'height': self.image_size[1], 'count': 1, 'crs': crs, 'transform': transform}
+
+        # Write result if tile consists of data. If tile has no data: location is not covered by AHN 3
+        all_zeros = not np.any(result)
+        if all_zeros == False:
+            with rio.open(filename, mode = 'w', **meta) as src:
+                src.write_band(1, result.astype(rio.float32))
+                src.close()
+        else:
+            print('Location not covered by AHN3.. No results written.')
+
+    # Generate vegetation heigt data of AHN information (based on DSM and DTM)
+    def calculateHeight(self, dsm_path, dtm_path, dest_path, name):
+        # dsm_path: directory of dsm tiles with ID 
+        # dtm_path: directory of dtm tiles with ID
+        # dest_path: write images to directory
+        # name: name of the file. Format: ID_'name'.tif
+
+        def calcVegHeight(dsm, dtm):
+            '''Calculate height from integer arrays'''
+            # Make all values positive by adding 1000 meter
+            dsm = np.add(dsm, 1000)
+            dtm = np.add(dtm, 1000)
+            height = dsm - dtm
+            return (height)
+
+        # List all tiles of both dtm and dsm
+        dsm_files = os.listdir(dsm_path)
+        dtm_files = os.listdir(dtm_path)
+        for i in range(len(dsm_files)):
+            img_id = dsm_files[i].split("_")[0]
+            for j in range(len(dtm_files)):
+                img_id2 = dtm_files[j].split("_")[0]
+                if img_id == img_id2:
+                    # If ID's are identical: read the tiles of both dsm and dtm
+                    with rio.open(dsm_path + "/" + dsm_files[i]) as src:
+                        dsm = src.read()
+                        meta = src.meta
+                    with rio.open(dtm_path + "/" + dtm_files[j]) as src2:
+                        dtm = src2.read()
+                    # Replace 0 values by -9999. 0 values are holes in the data
+                    dsm[dsm==0] = -9999
+                    dtm[dtm==0] = -9999     
+                    # Calculate the height of the vegetation (holes will be returned as negative)       
+                    height = calcVegHeight(dsm, dtm)
+                    # Set negative values (holes that were set to -9999) to 5m
+                    # Set very heigh objects to 5 to ensure a fixed scale of 0 - 5
+                    height[height>10] = 5
+                    height[height<0] = 5
+                    height.resize(self.image_size)
+                    # Create filename
+                    fn = f"{img_id}_{name}.tif"
+                    # Write height tile to file
+                    with rio.open(dest_path + "/" + fn, 'w', **meta) as dst:
+                        dst.write_band(1, height)
                     
     def createRasterMasks(self, store_path, store_path_mask, shapeLocation):
         shape = gpd.read_file(shapeLocation)
@@ -285,7 +372,8 @@ class N2000_Data():
                     with rio.open(pathname_dest, 'w', **out_meta) as dst:
                         dst.write_band(1, out_img)
                         dst.close
-                    
+
+    # Create checking images by creating polygon delaniations-mask           
     def createCheckingImages(self, store_path, store_path_check, shapeLocation):
         shape = gpd.read_file(shapeLocation)
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
@@ -362,7 +450,8 @@ class N2000_Data():
                     with rio.open(path_check_file, "w", **out_meta) as dest:
                         dest.write(out_img)
                         dest.close()
-                        
+
+    # Create checking images just by masking                    
     def createCheckingImages2(self, store_path, store_path_check, shapeLocation):
         shape = gpd.read_file(shapeLocation)
         crs = rio.crs.CRS({"init": ("epsg:"+str(epsg))}) 
@@ -424,7 +513,7 @@ class N2000_Data():
                 file = folder_path + "/" + file
                 tar_handle.add(file)
                 
-    def saveImageDataToJson(self, image_directory, bounding_boxes_images, file_name, image_size = (512,512), pixel_size = 0.25):
+    def saveImageDataToJson(self, image_directory, bounding_boxes_images, file_name):
         ############ SAVE BOUNDING BOXES AND NAMES IN JSON ##############
         import json
         image_ids = []
@@ -439,7 +528,7 @@ class N2000_Data():
         dictionary_data = {}
         for i in range(len(bounding_boxes_images)):
             image_id = image_ids[i]
-            dictionary_data[image_id] = {"bounding_box": bounding_boxes_images[i], "images_size" : image_size, "pixel_size" : pixel_size, "epsg": "28992"}
+            dictionary_data[image_id] = {"bounding_box": bounding_boxes_images[i], "images_size" : self.image_size, "pixel_size" : self.cell_size, "epsg": str(self.epsg)}
 
         # save json
         store_json = image_directory + "/" + file_name

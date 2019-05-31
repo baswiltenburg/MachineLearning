@@ -123,7 +123,7 @@ class N2000_Data():
         # for i in range(len(bb_image_patches)):
         #print(str(i) + " out of: " + str(len(bb_image_patches)))
         # Layers: 2018_ortho25, 2017_ortho25, 2016_ortho25, 2018_ortho25IR, 2017_ortho25IR, 2016_ortho25IR
-        wms = WebMapService(server)
+        wms = server
         data = wms.getmap(layers=[layer], styles=[], srs=('EPSG:'+str(self.epsg)), crs=('EPSG:'+str(self.epsg)), bbox=bounding_box,  size=self.image_size, format='image/tiff', transparent=True, stream = True) 
 
             # if ir == False:
@@ -142,7 +142,7 @@ class N2000_Data():
             #         img_2016 = wms.getmap(layers=['2016_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
                 
         # Define filenames
-        filename = store_path + "/" + name + ".tif"  
+        filename = store_path + "/" + name  
         #filename_2017 = store_path + "/" + str(i) + "_2017_" + name + ".tif"      
         #filename_2016 = store_path + "/" + str(i) + "_2016_" + name + ".tif"      
 
@@ -224,7 +224,7 @@ class N2000_Data():
         result = np.array(result)
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
         transform = Affine(self.cell_size, 0.0, bounding_box[0], 0.0, -self.cell_size, bounding_box[3])
-        filename = dest_folder + "/" + name + ".tif"  
+        filename = dest_folder + "/" + name  
         meta = {'driver': 'GTiff', 'dtype': 'float32', 'nodata': None, 'width': self.image_size[0], 'height': self.image_size[1], 'count': 1, 'crs': crs, 'transform': transform}
 
         # Write result if tile consists of data. If tile has no data: location is not covered by AHN 3
@@ -573,7 +573,65 @@ class N2000_Data():
                             with rio.open(dest_folder + "/" + file_id + "_" + name, 'w', **meta) as dst:
                                 for id, layer in enumerate(bands, start=1):
                                     dst.write_band(id, layer)
-                                    
+
+
+     # Create 6-dimensional image from CIR and RGB image
+    def create6dimensionalImage(self, path_rgb_data, path_cir_data, path_height_data, path_slope_data, dest_folder, name = '6channel_data.tif'):
+        # path_rgb_data = folder with rgb images
+        # path_cir_data = folder with cir images (should have the same id's and extents)
+        # path_height_data = folder with height images
+        # path_slope data = folder with slope images
+        # dest folder = destination folder of 4 channel (B,G,R,NIR) rasters
+        # general name of the raster images (prefixed by known id)
+
+        for rgb_img in os.listdir(path_rgb_data):
+            if rgb_img.endswith('.tif'):
+                file_id = rgb_img.split("_")[0] + "_" + rgb_img.split("_")[1]
+                id_without_year = rgb_img.split("_")[0]
+                rgb_path = path_rgb_data + "/" + rgb_img 
+                with rio.open(rgb_path, mode = 'r') as img_rgb:
+                    blue = img_rgb.read(1)
+                    #image_blue = reshape_as_image(blue)                
+                    green = img_rgb.read(2)
+                    #image_green = reshape_as_image(green)                
+                    red = img_rgb.read(3)
+                    #image_red = reshape_as_image(red)    
+
+                # Get Near infrared band
+                for cir_img in os.listdir(path_cir_data):
+                    if cir_img.endswith('.tif'):
+                        file2_id = cir_img.split("_")[0] + "_" + cir_img.split("_")[1]
+                        cir_path = path_cir_data + "/" + cir_img 
+                        if file_id == file2_id:                                              
+                            with rio.open(cir_path, mode = 'r') as img_cir:
+                                nir = img_cir.read(1)
+                # Get height band
+                for h_img in os.listdir(path_height_data):
+                    if h_img.endswith('.tif'):
+                        file3_id = h_img.split("_")[0] 
+                        h_path = path_height_data + "/" + h_img 
+                        if id_without_year == file3_id:                                              
+                            with rio.open(h_path, mode = 'r') as img_h:
+                                height = img_h.read(1)
+                # Get height band
+                for slope_img in os.listdir(path_slope_data):
+                    if slope_img.endswith('.tif'):
+                        file4_id = slope_img.split("_")[0]
+                        slope_path = path_slope_data + "/" + slope_img
+                        if id_without_year == file4_id:                                              
+                            with rio.open(slope_path, mode = 'r') as img_slope:
+                                slope = img_slope.read(1)                    
+                                
+                bands = [blue, green, red, nir, height, slope]
+                # Update meta to reflect the number of layers
+                meta = img_rgb.meta
+                meta.update(count = 6)
+
+                # Read each layer and write it to stack
+                with rio.open(dest_folder + "/" + file_id + "_" + name, 'w', **meta) as dst:
+                    for id, layer in enumerate(bands, start=1):
+                        dst.write_band(id, layer)
+                        
                                     
     # Download entire area
     #area = [230378.510, 479586.273, 232983.850,  482326.797]
@@ -589,13 +647,18 @@ class N2000_Data():
         ymin = area[1]
         xmax = area[2]
         ymax = area[3]
+        bb_id = 0
+        ids = []
         while xmin <= xmax_original and ymin <= ymax_original:   
-            bb = [xmin, ymin, xmin+(self.cell_size*self.image_size), ymin+(self.cell_size*self.image_size)]
+            bb = [xmin, ymin, xmin+(self.cell_size*self.image_size[0]), ymin+(self.cell_size*self.image_size[0])]
             bb_list.append(bb)
-            xmin = xmin + (self.cell_size*self.image_size)
-            xmax = xmax + (self.cell_size*self.image_size) 
+            ids.insert(len(ids), bb_id)
+            bb_id += 1
+            xmin = xmin + (self.cell_size*self.image_size[0])
+            xmax = xmax + (self.cell_size*self.image_size[0]) 
             if xmin >= xmax_original:
                 xmin = xmin_original
                 xmax = xmax_original
-                ymin = ymin + (self.cell_size*self.image_size) 
-                ymax = ymax + (self.cell_size*self.image_size) 
+                ymin = ymin + (self.cell_size*self.image_size[0]) 
+                ymax = ymax + (self.cell_size*self.image_size[0]) 
+        return(bb_list, ids)

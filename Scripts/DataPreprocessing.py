@@ -219,9 +219,14 @@ class N2000_DataPreparation():
                     filenames.append(name)
                     
                     # Add image to the list of images
-                    img = Image.open(path_training_data + "/" + filename)            
-                    arr = np.array(img)
-                    images.append(arr)
+                    # img = Image.open(path_training_data + "/" + filename)            
+                    # arr = np.array(img)
+                    # images.append(arr)
+                    img = rio.open(path_training_data + "/" + filename)  
+                    array = img.read()
+                    array = array.transpose((1, 2, 0))  
+                    array = np.expand_dims(array, axis=0)    
+                    images.append(array)
 
                     # Look for the corresponding mask-file with same name/id
                     for filename_mask in os.listdir(path_training_data):
@@ -491,7 +496,6 @@ class N2000_DataPreparation():
     # Normalize training dataset and save normalization statistics to file
     def NormalizeTrainingData(self, x_train, csv_folder, csv_name = 'NormalizationStats.csv'):
         x_train = x_train.astype('float32')
-        y_train = y_train.astype('float32')
 
         mean = np.mean(x_train)  # mean for data centering (derived from training data !)
         std = np.std(x_train)  # std for data normalization (derived from training data !)
@@ -516,6 +520,7 @@ class N2000_DataPreparation():
                 print(stat)
                 resultFile.write(stat)
                 resultFile.write("\n")
+        resultFile.close()
 
         return (x_train, stats)
 
@@ -589,7 +594,7 @@ class N2000_DataPreparation():
         return (x_train, stats)
     
     # Apply normalization to unseen data
-    def ApplyNormalization(self, h5_file, stats_file):
+    def NormalizeArrayFromH5(self, h5_file, stats_file):
         # Load training data
         file = h5py.File(h5_file, 'r')
         x_test = np.array(file.get('images'))
@@ -607,19 +612,48 @@ class N2000_DataPreparation():
                 
         mean = stats_list[0]
         std = stats_list[1]
-        min_x_train = stats_list[2]
-        max_x_train = stats_list[3]
-        min_x_test = np.min(x_test)
-        max_x_test = np.max(x_test)
-        print(mean, std, min_x_train, max_x_train)
+        min_value = stats_list[2]
+        max_value = stats_list[3]
+        
+        x_test -= mean # mean subtraction
+        x_test /= std  # normalization       
 
         # Rescale normalized images to 0 - 1 (NO USE STATS TRAINING DATA, CHECK IF THIS IS RIGHT)
-        x_test = (x_test-min_x_test)/(max_x_test-min_x_test)
+        x_test = (x_test-min_value)/(max_value-min_value)
 
         # Normalize ground-truth data as well [0-1]
         y_test /= 255
         
         return (x_test, y_test)
+
+    # Create training dataset of normalized images
+    def NormalizeImage(self, file_path, file_name, dest_folder, stats_file):
+        # Read image as numpy array
+        with rio.open(file_path, "r") as data:
+            array = data.read()   
+            meta = data.meta   
+        array = array.astype('float32')      
+
+        # Read statsfile with normalization statistics
+        stats_list = []
+        with open(stats_file, 'r') as stats:
+            for stat in stats:
+                stats_list.append(float(stat))
+        stats.close()
+        # Get statistics      
+        mean = stats_list[0]
+        std = stats_list[1]
+        min_value = stats_list[2]
+        max_value = stats_list[3]
+        # Normalize image
+        array -= mean # mean subtraction
+        array /= std  # normalization      
+        # Rescale normalized images to 0 - 1
+        array = (array-min_value)/(max_value-min_value)
+        # Write normalized image to file
+        meta.update({"dtype":"float32"})
+        with rio.open(f"{dest_folder}/{file_name}", "w", **meta) as dst:
+            dst.write(array)
 
     # Get the bounding boxes of images which have been downloaded already
     def getBoundingBoxesofImages(self, json_file, image_dir):

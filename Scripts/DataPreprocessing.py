@@ -11,6 +11,8 @@ import rasterio as rio
 import os
 from PIL import Image
 import json
+from sklearn.model_selection import train_test_split
+import random
 
 class N2000_DataAugmentation():
     # Batch size is number of images you want to generate with specific augmentation technique
@@ -225,7 +227,7 @@ class N2000_DataPreparation():
                     img = rio.open(path_training_data + "/" + filename)  
                     array = img.read()
                     array = array.transpose((1, 2, 0))  
-                    array = np.expand_dims(array, axis=0)    
+                    #array = np.expand_dims(array, axis=0)    
                     images.append(array)
 
                     # Look for the corresponding mask-file with same name/id
@@ -269,11 +271,13 @@ class N2000_DataPreparation():
         return (imgs_train, imgs_mask_train, filenames)
 
     # write h5 file
-    def writeH5file (self, images, masks, filenames, dest_h5_file):
+    def writeH5file (self, images, dest_h5_file, filenames = None, masks = None):
         with h5py.File(dest_h5_file, 'w') as hdf:
             hdf.create_dataset('images', data=images, compression='gzip', compression_opts=9)
-            hdf.create_dataset('masks', data=masks, compression='gzip', compression_opts=9)
-            hdf.create_dataset('filenames', data=filenames, compression='gzip', compression_opts=9)
+            if masks is not None:
+                hdf.create_dataset('masks', data=masks, compression='gzip', compression_opts=9)
+            if filenames is not None:
+                hdf.create_dataset('filenames', data=filenames, compression='gzip', compression_opts=9)
                     
     # DEVIDE TRAINING DATA IN TRAINING DATASET, VALIDATION DATASET AND TEST SET (70, 20, 10)                
     def DevideData(self, path_dataset):

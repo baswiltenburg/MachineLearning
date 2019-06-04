@@ -61,15 +61,19 @@ class DEM_Processing(object):
                     if treshold is not None:
                         height[height>treshold] = treshold
                         height[height<0] = treshold
+                        height[height==0] = 0.01
                     else:
                         height[height<0] = np.nan
+                        height[height==0] = 0.01
 
                     height.resize(self.image_size)
                     # Create filename
                     fn = f"{img_id}_{name}"
 
                     if normalize == True:
-                        height = self.NormalizeData(height, 0, treshold)
+                        height = self.NormalizeData(height, 0.01, treshold)
+                        height[height< 0.01] = 0.01
+                        height[height> 1] = 1.0
                         print(np.max(height))
                         print(np.min(height))
 

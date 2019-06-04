@@ -574,6 +574,62 @@ class N2000_Data():
                                 for id, layer in enumerate(bands, start=1):
                                     dst.write_band(id, layer)
 
+    ### CREATE 4 DIMENSIONAL IMAGE FROM CIR, RGB, HEIGHT: BLUE,GREEN, NDVI, HEIGHT ###
+
+    def create4dimensionalImage2 (self, rgb_path, cir_path, height_path, dest_folder, name = 'manueel4Channels.tif'):
+        # path_rgb_data = folder with rgb images
+        # path_cir_data = folder with cir images (should have the same id's and extents)
+        # dest folder = destination folder of 4 channel (Green, blue, NDVI, Height) rasters
+        # general name of the raster images (prefixed by known id)
+
+        # Import normalization function
+        work_directory = 'C:/Users/wba/Internship'
+        os.chdir(work_directory+'/MachineLearning/Scripts')
+        from DemProcessing import DEM_Processing
+        os.chdir(work_directory)
+        dmp = DEM_Processing(image_size = (256,256), cell_size = 0.25, epsg = 28992)
+
+        rgb_images = os.listdir(rgb_path)
+        cir_images = os.listdir(cir_path)
+        height_images = os.listdir(height_path)
+        for i in range(len(rgb_images)):
+            print(i)
+            if rgb_images[i].endswith('.tif'):
+                img = rgb_images[i]
+                img_id = f"{img.split('_')[0]}_{img.split('_')[1]}"
+                for j in range(len(cir_images)):
+                    if cir_images[j].endswith('.tif'):
+                        img2 = cir_images[j]
+                        img_id2 = f"{img2.split('_')[0]}_{img2.split('_')[1]}"
+                        if img_id == img_id2:
+                            for k in range(len(height_images)):
+                                if height_images[k].endswith('.tif'):
+                                    img3 = height_images[k]
+                                    img_id3 = f"{img3.split('_')[0]}"
+                                    if img_id3 == img_id2.split('_')[0]:
+                                        with rio.open(rgb_path + "/" + rgb_images[i]) as src:
+                                            blue = src.read(3)
+                                            green = src.read(2)
+                                            red = src.read(1)
+                                        with rio.open(cir_path + "/" + cir_images[j]) as src2:
+                                            nir = src2.read(1)
+                                        with rio.open(height_path + "/" + height_images[k]) as src3:
+                                            height = src3.read(1)
+                                            if np.max(height) > 1:
+                                                print(np.max(height), i)
+                                        
+                                        check = np.logical_and ( red > 0, nir > 0 )
+                                        ndvi = np.where (check,  (nir - red ) / ( nir + red ), 0.5) 
+                                        ndvi_normalized = dmp.NormalizeData(ndvi, -1, 1)
+                                        bands = [blue, green, ndvi_normalized, height]
+                                        # Update meta to reflect the number of layers
+                                        meta = src.meta
+                                        meta.update(count = 4)
+
+                                        # Read each layer and write it to stack
+                                        with rio.open(dest_folder + "/" + img_id + "_" + name, 'w', **meta) as dst:
+                                            for id, layer in enumerate(bands, start=1):
+                                                dst.write_band(id, layer)
 
      # Create 6-dimensional image from CIR and RGB image
     def create6dimensionalImage(self, path_rgb_data, path_cir_data, path_height_data, path_slope_data, dest_folder, name = '6channel_data.tif'):
@@ -585,6 +641,12 @@ class N2000_Data():
         # general name of the raster images (prefixed by known id)
 
         for rgb_img in os.listdir(path_rgb_data):
+            height = None 
+            red = None
+            blue = None 
+            green = None
+            slope = None
+            nir = None
             if rgb_img.endswith('.tif'):
                 file_id = rgb_img.split("_")[0] + "_" + rgb_img.split("_")[1]
                 id_without_year = rgb_img.split("_")[0]
@@ -609,19 +671,24 @@ class N2000_Data():
                 for h_img in os.listdir(path_height_data):
                     if h_img.endswith('.tif'):
                         file3_id = h_img.split("_")[0] 
+                        
                         h_path = path_height_data + "/" + h_img 
-                        if id_without_year == file3_id:                                              
+                        if id_without_year == file3_id:                                        
                             with rio.open(h_path, mode = 'r') as img_h:
                                 height = img_h.read(1)
-                # Get height band
+                # Get slope band
                 for slope_img in os.listdir(path_slope_data):
                     if slope_img.endswith('.tif'):
                         file4_id = slope_img.split("_")[0]
                         slope_path = path_slope_data + "/" + slope_img
                         if id_without_year == file4_id:                                              
                             with rio.open(slope_path, mode = 'r') as img_slope:
-                                slope = img_slope.read(1)                    
-                                
+                                slope = img_slope.read(1)      
+
+                if height is not None and slope is not None and nir is not None and red is not None and green is not None and blue is not None:
+                    bands = [blue, green, red, nir, height, slope]
+                else:
+                    continue              
                 bands = [blue, green, red, nir, height, slope]
                 # Update meta to reflect the number of layers
                 meta = img_rgb.meta

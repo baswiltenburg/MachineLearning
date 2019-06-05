@@ -1,9 +1,8 @@
 ### Set-up for training a U-net convolutional neural network for sementic segmentation ###
 import os
-from pathlib import Path
 work_directory = 'C:/Users/wba/Internship'
 os.chdir(work_directory+'/MachineLearning/Scripts')
-from DataCreation import *
+from DataCreation import N2000_Data
 from DataPreprocessing import *
 import CreateResults as cr
 from DemProcessing import *
@@ -29,6 +28,8 @@ epsg = 28992
 dc = N2000_Data(image_size = image_size, cell_size = cell_size, epsg = epsg)
 dp = N2000_DataPreparation(image_size = image_size)
 dmp = DEM_Processing(image_size = (256,256), cell_size = 0.25, epsg = 28992)
+
+
 
 ### OPTION 1. GENERATE BOUNDING BOXES BASED ON EXISTING BOUNDING BOXES ###
 json_file = work_directory + "/Data/5_TrainingData/Gras/Images/From_model/2016_2017_RgbCirAhn/stedelijkCirRgb256px.json"

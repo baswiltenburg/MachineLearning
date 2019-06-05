@@ -10,7 +10,6 @@ import numpy as np
 import rasterio.features
 from affine import Affine
 from shapely.geometry import shape, mapping, Polygon
-
     
 ### Read h5 file ###
 def readH5File (h5_path):

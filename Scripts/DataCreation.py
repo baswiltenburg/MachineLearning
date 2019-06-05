@@ -25,7 +25,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-class N2000_Data():     
+class N2000_Data(object):     
     #instance variables
     def __init__(self, image_size, cell_size, epsg):
         self.image_size = image_size

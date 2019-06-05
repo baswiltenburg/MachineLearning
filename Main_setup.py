@@ -1,6 +1,7 @@
 ### Set-up for training a U-net convolutional neural network for sementic segmentation ###
+# Csv directory: C:\Python36\envs\python3.6\Library\share\epsg_csv
+# C:\Python36\envs\python3.6\Library\share\gdal
 import os
-from pathlib import Path
 work_directory = 'C:/Users/wba/Internship'
 os.chdir(work_directory+'/MachineLearning/Scripts')
 from DataPreprocessing import *

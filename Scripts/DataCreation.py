@@ -25,7 +25,7 @@ import requests
 from PIL import Image
 from io import BytesIO
 
-class N2000_Data(object):     
+class N2000_Data():     
     #instance variables
     def __init__(self, image_size, cell_size, epsg):
         self.image_size = image_size
@@ -118,64 +118,24 @@ class N2000_Data(object):
     def downloadTrainingImages(self, bounding_box, server, layer, store_path, name = "image"):
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
         proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()
-        
-        # Loop trough the bounding box coordinates of training images need to be downloaded
-        # for i in range(len(bb_image_patches)):
-        #print(str(i) + " out of: " + str(len(bb_image_patches)))
-        # Layers: 2018_ortho25, 2017_ortho25, 2016_ortho25, 2018_ortho25IR, 2017_ortho25IR, 2016_ortho25IR
+
         wms = server
         data = wms.getmap(layers=[layer], styles=[], srs=('EPSG:'+str(self.epsg)), crs=('EPSG:'+str(self.epsg)), bbox=bounding_box,  size=self.image_size, format='image/tiff', transparent=True, stream = True) 
 
-            # if ir == False:
-            #     if '2018' in years:
-            #         img_2018 = wms.getmap(layers=['2018_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
-            #     if '2017' in years:
-            #         img_2017 = wms.getmap(layers=['2017_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-            #     if '2016' in years:
-            #         img_2016 = wms.getmap(layers=['2016_ortho25'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-            # else:
-            #     if '2018' in years:
-            #         img_2018 = wms.getmap(layers=['2018_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True) # stream = True verwijderd  
-            #     if '2017' in years:
-            #         img_2017 = wms.getmap(layers=['2017_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-            #     if '2016' in years: 
-            #         img_2016 = wms.getmap(layers=['2016_ortho25IR'], styles=[], srs='EPSG:28992', crs='EPSG:28992', bbox=bb_image_patches[i],  size=self.image_size, format='image/tiff', transparent=True)  
-                
         # Define filenames
-        filename = store_path + "/" + name  
-        #filename_2017 = store_path + "/" + str(i) + "_2017_" + name + ".tif"      
-        #filename_2016 = store_path + "/" + str(i) + "_2016_" + name + ".tif"      
+        filename = f"{store_path}/{name}" 
 
         out = open(filename, 'wb')
         out.write(data.read())
         out.close()  
-        #files.append(filename_2018)
 
         transform = Affine(self.cell_size, 0.0, bounding_box[0], 0.0, -self.cell_size, bounding_box[3])
         with rio.open(filename, mode = 'r+') as src:
             src.transform = transform
             src.crs = crs
             src.close()
-
-        # Write images disk (as tiff files with spatial information)
-        # files = []
-        # if '2018' in years:
-        #     out = open(filename_2018, 'wb')
-        #     out.write(img_2018.read())
-        #     out.close()  
-        #     files.append(filename_2018)
-        # if '2017' in years:
-        #     out = open(filename_2017, 'wb')
-        #     out.write(img_2017.read())
-        #     out.close()
-        #     files.append(filename_2017)
-        # if '2016' in years: 
-        #     out = open(filename_2016, 'wb')
-        #     out.write(img_2016.read())
-        #     out.close() 
-        #     files.append(filename_2016)
             
-        # List written files, update projetion and move tile to spatial position
+        # List written files, update projetion and move tile to spatial position (USING GDAL INSTEAD OF RASTERIO)
         # for file in files:
         #     # SET PROJECTION AND MOVE TILE TO POSITION #
         #     dataset = gdal.Open(file,1)
@@ -196,14 +156,6 @@ class N2000_Data(object):
         #     gtl[5] = (-1 * self.cell_size)
         #     dataset.SetGeoTransform(tuple(gtl))
         #     dataset = None                
-            
-# THIS CODE DOES THE SAME AS THE CODE ABOVE BUT USES RASTERIO INSTEAD OF OGR/GDAL            
-#             for file in files:          
-#                 transform = Affine(self.cell_size, 0.0, bb_image_patches[i][0], 0.0, -self.cell_size, bb_image_patches[i][3])
-#                 with rio.open(file, mode = 'r+') as src:
-#                     src.transform = transform
-#                     src.crs = crs
-#                     src.close()
 
     def downloadAhn3Images(self, server, layer, bounding_box, dest_folder, name = 'unknown_ahn3'):
         bb_param = f"{bounding_box[0]},{bounding_box[1]},{bounding_box[2]},{bounding_box[3]}"
@@ -235,51 +187,6 @@ class N2000_Data(object):
                 src.close()
         else:
             print('Location not covered by AHN3.. No results written.')
-
-    # Generate vegetation heigt data of AHN information (based on DSM and DTM)
-    def calculateHeight(self, dsm_path, dtm_path, dest_path, name):
-        # dsm_path: directory of dsm tiles with ID 
-        # dtm_path: directory of dtm tiles with ID
-        # dest_path: write images to directory
-        # name: name of the file. Format: ID_'name'.tif
-
-        def calcVegHeight(dsm, dtm):
-            '''Calculate height from integer arrays'''
-            # Make all values positive by adding 1000 meter
-            dsm = np.add(dsm, 1000)
-            dtm = np.add(dtm, 1000)
-            height = dsm - dtm
-            return (height)
-
-        # List all tiles of both dtm and dsm
-        dsm_files = os.listdir(dsm_path)
-        dtm_files = os.listdir(dtm_path)
-        for i in range(len(dsm_files)):
-            img_id = dsm_files[i].split("_")[0]
-            for j in range(len(dtm_files)):
-                img_id2 = dtm_files[j].split("_")[0]
-                if img_id == img_id2:
-                    # If ID's are identical: read the tiles of both dsm and dtm
-                    with rio.open(dsm_path + "/" + dsm_files[i]) as src:
-                        dsm = src.read()
-                        meta = src.meta
-                    with rio.open(dtm_path + "/" + dtm_files[j]) as src2:
-                        dtm = src2.read()
-                    # Replace 0 values by -9999. 0 values are holes in the data
-                    dsm[dsm==0] = -9999
-                    dtm[dtm==0] = -9999     
-                    # Calculate the height of the vegetation (holes will be returned as negative)       
-                    height = calcVegHeight(dsm, dtm)
-                    # Set negative values (holes that were set to -9999) to 5m
-                    # Set very heigh objects to 5 to ensure a fixed scale of 0 - 5
-                    height[height>10] = 5
-                    height[height<0] = 5
-                    height.resize(self.image_size)
-                    # Create filename
-                    fn = f"{img_id}_{name}.tif"
-                    # Write height tile to file
-                    with rio.open(dest_path + "/" + fn, 'w', **meta) as dst:
-                        dst.write_band(1, height)
                     
     def createRasterMasks(self, store_path, store_path_mask, shapeLocation):
         shape = gpd.read_file(shapeLocation)
@@ -574,65 +481,8 @@ class N2000_Data(object):
                                 for id, layer in enumerate(bands, start=1):
                                     dst.write_band(id, layer)
 
-    ### CREATE 4 DIMENSIONAL IMAGE FROM CIR, RGB, HEIGHT: BLUE,GREEN, NDVI, HEIGHT ###
-
-    def create4dimensionalImage2 (self, rgb_path, cir_path, height_path, dest_folder, name = 'manueel4Channels.tif'):
-        # path_rgb_data = folder with rgb images
-        # path_cir_data = folder with cir images (should have the same id's and extents)
-        # dest folder = destination folder of 4 channel (Green, blue, NDVI, Height) rasters
-        # general name of the raster images (prefixed by known id)
-
-        # Import normalization function
-        work_directory = 'C:/Users/wba/Internship'
-        os.chdir(work_directory+'/MachineLearning/Scripts')
-        from DemProcessing import DEM_Processing
-        os.chdir(work_directory)
-        dmp = DEM_Processing(image_size = (256,256), cell_size = 0.25, epsg = 28992)
-
-        rgb_images = os.listdir(rgb_path)
-        cir_images = os.listdir(cir_path)
-        height_images = os.listdir(height_path)
-        for i in range(len(rgb_images)):
-            print(i)
-            if rgb_images[i].endswith('.tif'):
-                img = rgb_images[i]
-                img_id = f"{img.split('_')[0]}_{img.split('_')[1]}"
-                for j in range(len(cir_images)):
-                    if cir_images[j].endswith('.tif'):
-                        img2 = cir_images[j]
-                        img_id2 = f"{img2.split('_')[0]}_{img2.split('_')[1]}"
-                        if img_id == img_id2:
-                            for k in range(len(height_images)):
-                                if height_images[k].endswith('.tif'):
-                                    img3 = height_images[k]
-                                    img_id3 = f"{img3.split('_')[0]}"
-                                    if img_id3 == img_id2.split('_')[0]:
-                                        with rio.open(rgb_path + "/" + rgb_images[i]) as src:
-                                            blue = src.read(3)
-                                            green = src.read(2)
-                                            red = src.read(1)
-                                        with rio.open(cir_path + "/" + cir_images[j]) as src2:
-                                            nir = src2.read(1)
-                                        with rio.open(height_path + "/" + height_images[k]) as src3:
-                                            height = src3.read(1)
-                                            if np.max(height) > 1:
-                                                print(np.max(height), i)
-                                        
-                                        check = np.logical_and ( red > 0, nir > 0 )
-                                        ndvi = np.where (check,  (nir - red ) / ( nir + red ), 0.5) 
-                                        ndvi_normalized = dmp.NormalizeData(ndvi, -1, 1)
-                                        bands = [blue, green, ndvi_normalized, height]
-                                        # Update meta to reflect the number of layers
-                                        meta = src.meta
-                                        meta.update(count = 4)
-
-                                        # Read each layer and write it to stack
-                                        with rio.open(dest_folder + "/" + img_id + "_" + name, 'w', **meta) as dst:
-                                            for id, layer in enumerate(bands, start=1):
-                                                dst.write_band(id, layer)
-
-     # Create 6-dimensional image from CIR and RGB image
-    def create6dimensionalImage(self, path_rgb_data, path_cir_data, path_height_data, path_slope_data, dest_folder, name = '6channel_data.tif'):
+     # Create 5-or 6-dimensional image from CIR and RGB image
+    def CreateMultiDimensionalImage(self, path_rgb_data, path_cir_data, path_height_data,  dest_folder, path_slope_data = None, name = '6channel_data.tif'):
         # path_rgb_data = folder with rgb images
         # path_cir_data = folder with cir images (should have the same id's and extents)
         # path_height_data = folder with height images
@@ -653,10 +503,13 @@ class N2000_Data(object):
                 rgb_path = path_rgb_data + "/" + rgb_img 
                 with rio.open(rgb_path, mode = 'r') as img_rgb:
                     blue = img_rgb.read(1)
+                    blue = blue.astype('float32') 
                     #image_blue = reshape_as_image(blue)                
                     green = img_rgb.read(2)
+                    green = green.astype('float32')
                     #image_green = reshape_as_image(green)                
                     red = img_rgb.read(3)
+                    red = red.astype('float32')
                     #image_red = reshape_as_image(red)    
 
                 # Get Near infrared band
@@ -667,6 +520,7 @@ class N2000_Data(object):
                         if file_id == file2_id:                                              
                             with rio.open(cir_path, mode = 'r') as img_cir:
                                 nir = img_cir.read(1)
+                                nir = nir.astype('float32')
                 # Get height band
                 for h_img in os.listdir(path_height_data):
                     if h_img.endswith('.tif'):
@@ -676,23 +530,28 @@ class N2000_Data(object):
                         if id_without_year == file3_id:                                        
                             with rio.open(h_path, mode = 'r') as img_h:
                                 height = img_h.read(1)
+                                height = height.astype('float32')
+                if path_slope_data is not None:
                 # Get slope band
-                for slope_img in os.listdir(path_slope_data):
-                    if slope_img.endswith('.tif'):
-                        file4_id = slope_img.split("_")[0]
-                        slope_path = path_slope_data + "/" + slope_img
-                        if id_without_year == file4_id:                                              
-                            with rio.open(slope_path, mode = 'r') as img_slope:
-                                slope = img_slope.read(1)      
+                    for slope_img in os.listdir(path_slope_data):
+                        if slope_img.endswith('.tif'):
+                            file4_id = slope_img.split("_")[0]
+                            slope_path = path_slope_data + "/" + slope_img
+                            if id_without_year == file4_id:                                              
+                                with rio.open(slope_path, mode = 'r') as img_slope:
+                                    slope = img_slope.read(1)  
+                                    slope = slope.astype('float32')    
 
                 if height is not None and slope is not None and nir is not None and red is not None and green is not None and blue is not None:
                     bands = [blue, green, red, nir, height, slope]
+                elif height is not None and nir is not None and red is not None and green is not None and blue is not None: 
+                    bands = [blue, green, red, nir, height]
                 else:
                     continue              
-                bands = [blue, green, red, nir, height, slope]
+                
                 # Update meta to reflect the number of layers
                 meta = img_rgb.meta
-                meta.update(count = 6)
+                meta.update({"count":len(bands), "dtype":"float32"})
 
                 # Read each layer and write it to stack
                 with rio.open(dest_folder + "/" + file_id + "_" + name, 'w', **meta) as dst:

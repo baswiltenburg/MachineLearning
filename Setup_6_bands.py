@@ -5,6 +5,8 @@ os.chdir(work_directory+'/MachineLearning/Scripts')
 import VegScannerPython as vs
 from DataCreation import *
 from DataPreprocessing import *
+#from DataAugmentation import *
+from DataNormalization import *
 import CreateResults as cr
 from DemProcessing import *
 import numpy as np
@@ -18,6 +20,7 @@ os.chdir(work_directory)
 dc = N2000_Data(image_size = (256, 256), cell_size = 0.25, epsg = 28992)
 dp = N2000_DataPreparation(image_size = (256, 256))
 dmp = DEM_Processing(image_size = (256,256), cell_size = 0.25, epsg = 28992)
+dn = DataNormalization(image_size = (512,512))
 
 ### OPTION 1. GENERATE BOUNDING BOXES BASED ON EXISTING BOUNDING BOXES ###
 json_file = work_directory + "/Data/5_TrainingData/Gras/Images/From_model/2016_2017_RgbCirAhn/stedelijkCirRgb256px.json"
@@ -68,8 +71,8 @@ cir_normalized = dn.NormalizeData(stats_file = f"{cir_path}/NormalizationCIR.csv
 
 ### DOWNLOAD DSM AND DTM ###
 url = "https://geodata.nationaalgeoregister.nl/ahn3/wcs"
-dtm_path = f"{work_directory}/Data/5_TrainingData/Gras/Images/From_model/2016_2017_RgbCirAhn/dsm"
-dsm_path= f"{work_directory}/Data/5_TrainingData/Gras/Images/From_model/2016_2017_RgbCirAhn/dtm"
+dtm_path = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/dtm"
+dsm_path= "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/dsm"
 dsm = 'ahn3_05m_dsm'
 dtm = 'ahn3_05m_dtm'
 for i in range(len(ids)):
@@ -81,27 +84,27 @@ for i in range(len(ids)):
 
 ### CALCULATE VEGETATION HEIGHT AND NORMALIZE ###
 name = "unknown_vegetationHeight.tif"
-dest_folder_heigth = f"{work_directory}/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/height"
-dmp.calculateVegetationHeight(dsm_path = dsm_path, dtm_path = dtm_path, dest_path = dest_folder_heigth, name = name, normalize=False)
+dest_folder_heigth = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/height"
+dmp.calculateVegetationHeight(dsm_path = dsm_path, dtm_path = dtm_path, dest_path = dest_folder_heigth, name = name, normalize=True)
 
 ### CALCULATE SLOPE AND NORMALIZE AND NORMALIZE ###
-dest_folder_slope = work_directory + "/Data/5_TrainingData/Gras/Images/From_model/2016_2017_RgbCirAhn/slope"
+dest_folder_slope = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/slope"
 tiles = os.listdir(dsm_path)
 for tile in tiles:
     if tile.endswith('.tif'):
-        tile_path = f"{path}/{tile}"  
+        tile_path = f"{dsm_path}/{tile}"  
         name = f"{(tile.split('_')[0])}_{(tile.split('_')[1])}_slope.tif" 
-        dmp.calculate_slope(tile_path, dest_folder_slope, name, normalize = False)  
+        dmp.calculate_slope(tile_path, dest_folder_slope, name, normalize = True)  
 
 ### CREATE 6 DIMENSIONAL IMAGE ###
-path_training_data = f"{work_directory}/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCirAhn/training_data_5channels"
-dc.CreateMultiDimensionalImage(f"{rgb_path}/normalized", f"{cir_path}/normalized", dest_folder_heigth, path_training_data, path_slope_data=None, name = 'Manueel5Channels.tif')
-#vs.createHSNDVIImage(rgb_path = rgb_path, cir_path =cir_path, height_path=dest_folder_heigth, slope_path=dest_folder_slope, dest_folder = dest_folder, name = 'NdviHeightSlope.tif')
+path_training_data = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/training_data_6channels"
+dc.CreateMultiDimensionalImage(rgb_path, cir_path, dest_folder_heigth, path_training_data, path_slope_data= dest_folder_slope, name = 'Test6Channels.tif')
+vs.CreateRgbNirNdviHeightImage(rgb_path = rgb_path, cir_path =cir_path, height_path=dest_folder_heigth, dest_folder = path_training_data, name = 'RgbNirNdviHeight.tif')
 
 ### NORMALIZE MASK DATA  ###
-path_mask_data = f"{work_directory}/Data/5_TrainingData/Gras/Images/BGT/2016_2017_RgbCirAhn/mask2"
+path_mask_data = f"{work_directory}/Data/5_TrainingData/Gras/Images/Manueel/2016_2017_RgbCir/mask"
 mask_array = dn.NormalizeMaskData(mask_folder = path_mask_data, write = True)
-
+mask_array = None
 ### COPY MASK IMAGES TO FOLDER -- ONLY FOR TRAINING DATA ###
 dp.PrepareTrainingData(path_training_data= path_training_data, path_mask_data = path_mask_data)
 

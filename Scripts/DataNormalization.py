@@ -53,6 +53,55 @@ class DataNormalization():
                     resultFile.write("\n")
         return (stats)
 
+    def CalculateNormalizationStatisticsPerBand(self, np_array, csv_folder, csv_name = "NormalizationStatsPerBand.csv", write_stats = True, bands = 3):
+        np_array_norm = np_array
+        stats = []
+        for band_nr in range(bands):
+            # Only normalize the bands which are not yet normalized (RGB AND NIR BAND: 0,1,2,3)
+            if band_nr < 4:
+                if len(np_array.shape)==3:
+                    band = np_array_norm[:,:,band_nr]
+                    band = band.astype('float32')
+                    mean = np.mean(band)
+                    stats.insert(len(stats), mean)
+                    std = np.std(band)
+                    stats.insert(len(stats), std)
+                    band -= mean
+                    band /= std
+                    min_band = np.min(band)
+                    stats.insert(len(stats), min_band)
+                    max_band = np.max(band)
+                    stats.insert(len(stats), max_band)
+                elif len(np_array.shape)==4:
+                    band = np_array_norm[:,:,:,band_nr]
+                    band = band.astype('float32')
+                    mean = np.mean(band)
+                    stats.insert(len(stats), mean)
+                    std = np.std(band)
+                    stats.insert(len(stats), std)
+                    band -= mean
+                    band /= std
+                    min_band = np.min(band)
+                    stats.insert(len(stats), min_band)
+                    max_band = np.max(band)
+                    stats.insert(len(stats), max_band)
+                else:
+                    return("Wrong shape of numpy array")
+            else:
+                continue
+        def format(value):
+            return "%.3f" % value        
+        stats_formatted = [format(v) for v in stats]
+        
+        if write_stats == True:
+            with open(f"{csv_folder}/{csv_name}",'w') as resultFile:
+                for stat in stats_formatted:
+                    print(stat)
+                    resultFile.write(stat)
+                    resultFile.write("\n")
+        return (stats)
+
+
     def NormalizeData(self, stats_file, img_folder = "", h5_file = None, mask = False, write = False, dest_folder = "", array_result = False):
         # stats file:               csv- file with mean, sigma, min and max
         # img_folder:               folder location of tif images
@@ -71,7 +120,7 @@ class DataNormalization():
         std = stats_list[1]
         min_value = stats_list[2]
         max_value = stats_list[3]
-   
+
         # If data is stored in an Array
         if h5_file is not None:
             img_array = []
@@ -130,6 +179,84 @@ class DataNormalization():
             if array_result == True:
                 array_normalized = np.array(array_normalized)
             return(array_normalized)
+
+    def NormalizeDataPerBand(self, stats_file, h5_file, mask = False):
+        # stats file:               csv- file with mean, sigma, min and max
+        # h5_file:                  path to h5 file with numpy arrays
+        # mask:                     Whether the h5-file contains also maks arrays
+        # Read statsfile
+        stats_list = []
+        with open(stats_file, 'r') as stats:
+            for stat in stats:
+                stats_list.append(float(stat))
+   
+        # If data is stored in an Array
+        if h5_file is not None:
+            # Load training data
+            file = h5py.File(h5_file, 'r')
+            img_x = np.array(file.get('images'))
+            number_of_bands = img_x.shape[-1]
+            index_mean = 0
+            index_std = 1
+            index_min = 2
+            index_max = 3  
+            band_list = [] 
+            for band_nr in range(number_of_bands):                  
+                if len(img_x.shape)==3:   
+                    if band_nr < 4:                         
+                        mean = stats_list[index_mean]
+                        print(mean)
+                        std = stats_list[index_std]
+                        min_value = stats_list[index_min]
+                        max_value = stats_list[index_max]
+                        band = img_x[:,:,band_nr]
+                        band = band.astype('float32')
+                        band -= mean
+                        band /= std
+                        band = (band-min_value)/(max_value-min_value) 
+                        band_list.insert(len(band_list), band)                 
+                        index_mean += 4
+                        index_std += 4
+                        index_min += 4
+                        index_max += 4 
+                    else:
+                        # Band is not RGB or NIR and should be already normalized (HEIGHT, SLOPE OR NDVI)
+                        band = img_x[:,:,band_nr]
+                        band = band.astype('float32')
+                        band_list.insert(len(band_list), band)
+                elif len(img_x.shape)==4:
+                    if band_nr < 4:          
+                        mean = stats_list[index_mean]
+                        print(mean)
+                        std = stats_list[index_std]
+                        min_value = stats_list[index_min]
+                        max_value = stats_list[index_max]
+                        band = img_x[:,:,:,band_nr]
+                        band = band.astype('float32')
+                        band -= mean
+                        band /= std
+                        band = (band-min_value)/(max_value-min_value) 
+                        band_list.insert(len(band_list), band)                 
+                        index_mean += 4
+                        index_std += 4
+                        index_min += 4
+                        index_max += 4  
+                    else:
+                        # Band is not RGB or NIR and should be already normalized (HEIGHT, SLOPE OR NDVI)
+                        band = img_x[:,:,:,band_nr]
+                        band = band.astype('float32')
+                        band_list.insert(len(band_list), band)              
+                else:
+                    return('Shape of numpy array is not correct..')
+     
+            normalized_data = np.stack(band_list, axis = -1)
+
+            if mask == True:
+                img_y = np.array(file.get('masks')) 
+                img_y = img_y.astype('float32')
+                img_y /= 255            
+                return(normalized_data, img_y)
+            return(normalized_data)
 
     def NormalizeDataMinMax(self, stats_file, np_array, csv_folder, csv_name = "NormalizationStats.csv"):
         array_list = []

@@ -193,7 +193,7 @@ class N2000_Data():
         shape.loc[:,'Dissolve'] = 1
         files = [f for f in listdir(store_path) if isfile(join(store_path, f))]
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
-        proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()
+        #proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()
         count = 0
         for file in files:
             if file.endswith(".tif"):
@@ -227,12 +227,13 @@ class N2000_Data():
                         return getProj4(epsg)                   
 
                 # Open training mask images
-                with rio.open(path_mask_file, mode = 'r') as src_mask:
+                with rio.open(path_mask_file, mode = 'r+') as src_mask:
                     # Create mask image
                     try:
                         out_img, out_transform = mask.mask(src_mask, shapes=coords, crop=True, invert = False)
                         out_meta = src_mask.meta.copy()
-                        crs_metadata = getProj4(self.epsg)
+                        #crs_metadata = getProj4(self.epsg)
+                        crs_metadata = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
                         out_meta.update({"driver": "GTiff", "height": out_img.shape[1], "width": out_img.shape[2], "transform": out_transform, "crs": crs_metadata})
                         out_img[out_img > 0] = 255
                         src_mask.close()
@@ -240,11 +241,21 @@ class N2000_Data():
                             dest.write(out_img)
                             dest.close()
                     except:
-                        print ("No overlap")
-                        os.unlink(file_path)
-                        os.unlink(path_mask_file)
+                        print ("No overlap, everything set to 0")
+                        data = src_mask.read()
+                        out_meta = src_mask.meta.copy()
+                        crs_metadata = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
+                        #crs_metadata = getProj4(self.epsg)
+                        out_meta.update({"driver": "GTiff", "height": self.image_size[0], "width": self.image_size[1], "crs": crs_metadata})
+                        data[data>0]=0
+                        src_mask.close()
+                        with rio.open(path_mask_file, "w", **out_meta) as dest:
+                            dest.write(data)
+                            dest.close()
+                        #os.unlink(file_path)
+                        #os.unlink(path_mask_file)
                         print(file_path)
-                        print("Trainig image removed from dataset")
+                        #print("Trainig image removed from dataset")
                         continue
                     
     def convertMaskToBinaryMask(self, src_folder, dst_folder):
@@ -272,7 +283,8 @@ class N2000_Data():
                     # Read the first band only (values in first, second and third band are the same)
                     out_img = src_check.read(1)
                     out_meta = src_check.meta.copy()              
-                    crs_metadata = getProj4(self.epsg)                
+                    #crs_metadata = getProj4(self.epsg)   
+                    crs_metadata = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))})              
                     out_meta.update({"driver": "GTiff", "height": out_img.shape[0], "width": out_img.shape[1], "crs": crs_metadata, "count" : 1})
                     src_check.close()
                     # Write binary mask to file (only the first band)

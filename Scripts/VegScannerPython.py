@@ -12,8 +12,8 @@ from rasterio.plot import reshape_as_raster, reshape_as_image
 from matplotlib import pyplot
 os.chdir(work_directory)
 
-### CREATE 4 DIMENSIONAL IMAGE FROM CIR, RGB, HEIGHT: BLUE,GREEN, NDVI, HEIGHT ###
-def createBGNdviHeightImage(rgb_path, cir_path, height_path, dest_folder, name = 'manueel4Channels.tif'):
+### CREATE 6 DIMENSIONAL IMAGE FROM CIR, RGB, HEIGHT: BLUE,GREEN, RED, NIR, NDVI, HEIGHT ###
+def CreateRgbNirNdviHeightImage(rgb_path, cir_path, height_path, dest_folder, name = 'manueel4Channels.tif'):
     # path_rgb_data = folder with rgb images
     # path_cir_data = folder with cir images (should have the same id's and extents)
     # dest folder = destination folder of 4 channel (Green, blue, NDVI, Height) rasters
@@ -53,15 +53,17 @@ def createBGNdviHeightImage(rgb_path, cir_path, height_path, dest_folder, name =
                                         height = src3.read(1)
                                         if np.max(height) > 1:
                                             print(np.max(height), i)
+                                    blue = blue.astype('float32')
+                                    green = green.astype('float32')
                                     red = red.astype('float32')
                                     nir = nir.astype('float32')
                                     check = np.logical_and ( red > 0, nir > 0 )
                                     ndvi = np.where (check,  (nir - red ) / ( nir + red ), 0.5) 
-                                    ndvi_normalized = dmp.NormalizeData(ndvi, -1, 1)
-                                    bands = [blue, green, ndvi_normalized, height]
+                                    #ndvi_normalized = dmp.NormalizeData(ndvi, -1, 1)
+                                    bands = [blue, green, red, nir, ndvi, height]
                                     # Update meta to reflect the number of layers
                                     meta = src.meta
-                                    meta.update(count = 4)
+                                    meta.update({"count":6, "dtype":"float32"})
 
                                     # Read each layer and write it to stack
                                     with rio.open(dest_folder + "/" + img_id + "_" + name, 'w', **meta) as dst:

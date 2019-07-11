@@ -162,7 +162,7 @@ def CalculateConfusionMatrix(prediction_directory, gt_directory, csv_file):
     import pandas as pd    
     predictions = os.listdir(prediction_directory)
     gt = os.listdir(gt_directory)
-    tresholds = [0.1, 0.2, 0.3, 0.4, 0.5, 0.6, 0.7, 0.8, 0.9]
+    tresholds = [0.25, 0.5, 0.75]
     for treshold in tresholds: 
         con_matrix = [0,0,0,0] # tn, fp, fn, tp
         for i in range(len(predictions)):
@@ -187,7 +187,7 @@ def CalculateConfusionMatrix(prediction_directory, gt_directory, csv_file):
                         y_gt = np.ndarray.tolist(ground_truth)
                         y_pred = [p for sublist in pred for p in sublist]
                         y_true = [g for sublist in y_gt for g in sublist]
-                        tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0,1]).ravel()
+                        tn, fp, fn, tp = confusion_matrix(y_true, y_pred, labels=[0,1]).ravel() # labes was 0,1
                         con_matrix[0]+= tn
                         con_matrix[1]+= fp
                         con_matrix[2]+= fn
@@ -199,7 +199,7 @@ def CalculateConfusionMatrix(prediction_directory, gt_directory, csv_file):
         # Compute precision, tp / (tp + fp)
         precision = con_matrix[3] / (con_matrix[3]+con_matrix[1])
         # Compute f1-score: 2 tp / (2 tp + fp + fn)
-        f1_score = (precision * recall) / (precision + recall)
+        f1_score = 2 * ((precision * recall) / (precision + recall))
         if treshold == tresholds[0]:
             # Create dataframe        
             data = {'treshold': [treshold], 'true_negative': [con_matrix[0]], 'false_positive':[con_matrix[1]], 'false_negative': [con_matrix[2]], 'true_postive':[con_matrix[3]], 'recall':[recall], 'precision':[precision], 'f1_score':[f1_score]}
@@ -212,18 +212,65 @@ def CalculateConfusionMatrix(prediction_directory, gt_directory, csv_file):
     data_df.to_csv(csv_file)
     return(data_df)
 
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask"
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9/"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
 csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9/ConvolutionMatrixRun9.csv"
 results_run9 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-    
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run6/Tuinen"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_Tuinen/2016_RgbCir2/mask"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run6/Tuinen/ConvolutionMatrixRun6.csv"
+
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run3/"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run3/ConvolutionMatrixRun3.csv"
+results_run3 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run7/"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run7/ConvolutionMatrixRun7.csv"
+results_run7 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run5/"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run5/ConvolutionMatrixRun5.csv"
 results_run5 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run11/"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run11/ConvolutionMatrixRun11.csv"
+results_run11 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run12/"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run12/ConvolutionMatrixRun12.csv"
+results_run12 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+
+
+
+
+
+
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run2/BGT"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run2/BGT/ConvolutionMatrixRun2.csv"
+results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
     
-
-
-
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run3/BGT"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run3/BGT/ConvolutionMatrixRun3.csv"
+results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+    
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run4/BGT"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run4/BGT/ConvolutionMatrixRun4.csv"
+results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+    
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run5/BGT"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run5/BGT/ConvolutionMatrixRun5.csv"
+results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+    
+prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run6/BGT"
+gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
+csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run6/BGT/ConvolutionMatrixRun6.csv"
+results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
+    
 
 #https://www.statisticshowto.datasciencecentral.com/false-positive-definition-and-examples/

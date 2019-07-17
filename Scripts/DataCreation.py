@@ -50,30 +50,8 @@ class N2000_Data():
             area = x_meter * y_meter
             bounding_box_areas.append(area)         
         return(bounding_box_list, bounding_box_areas) 
-
-    def createImageBoundingBoxes(self, bounding_box_list, bounding_box_areas):
-        bb_image_patches = []
-        # Calculate the number of samples (training images) per habitat bounding box
-        for i in range(len(bounding_box_list)):
-            bb = bounding_box_list[i]
-            bb_area = bounding_box_areas[i]
-            image_area = (self.image_size[0]*self.cell_size) * (self.image_size[1]*self.cell_size)
-            number_of_samples = int(np.ceil(bb_area / image_area))    
-            # Get random x and y points within the bounding box and create image patch bounding box (this x and y point represent centre of image patch)
-            for j in range(number_of_samples):
-                x = random.uniform(bb[0], bb[2])
-                y = random.uniform(bb[1], bb[3])
-                # Calculate new bounding box based on a random center point
-                xmin = x - ((self.image_size[0]/2)* self.cell_size)
-                xmax = x + ((self.image_size[0]/2)* self.cell_size)
-                ymin = y - ((self.image_size[1]/2)* self.cell_size)
-                ymax = y + ((self.image_size[1]/2)* self.cell_size)
-                bb_image_patch = [xmin, ymin, xmax, ymax]
-                bb_image_patches.append(bb_image_patch) 
-        # Return a list of lists with bounding box coordinates of training images to be downloaded!
-        return(bb_image_patches)
-    
-    def createImageBoundingBoxes2(self, shapeLocation):
+   
+    def createImageBoundingBoxes(self, shapeLocation):
         from shapely.geometry import Polygon, Point, LineString
         shape = gpd.read_file(shapeLocation)
         polygons = []

@@ -116,44 +116,8 @@ def vectorizePrediction(geotiff_folder, cat = 'h5130', epsg = 28992, prob_tresho
     # Write geopandas dataframe to file
     out_gdf.to_file(driver = 'ESRI Shapefile', filename= geotiff_folder+"/"+cat+".shp")
 
-geotiff_folder = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9"
-vectorizePrediction(geotiff_folder = geotiff_folder, prob_treshold=0.5)
-
-geotiff_folder = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9"
-import os
-import shapely, rasterio
-import geopandas as gpd
-from rasterio import features
-from shapely import geometry
-import rasterio as rio
-prob_treshold = 0.5
-from shapely.geometry import shape, mapping, Polygon
-files = os.listdir(geotiff_folder)
-epsg = 28992
-out_gdf = gpd.GeoDataFrame(columns = ['img_id', 'file_name', 'class'], crs = {'init': 'epsg:'+str(epsg)})
-index = 0
-for i in range(len(files)):
-    if files[i].endswith('.tif'): 
-        image_id = files[i].split("_")[0]
-        name = files[i].split("_")[0] + "_" + files[i].split("_")[1] + "_" + files[i].split("_")[2]   
-        cat = 'h5130'
-        with rio.open(geotiff_folder+"/" + files[i], mode = 'r') as src:                
-            src_img = src.read(1)            
-            src_img[src_img > prob_treshold] = 1.0     
-            transform = src.meta['transform']            
-        for shp, val in features.shapes(src_img, transform=transform, connectivity=4):
-            # Add polygons (shape) to vector list when raster value = 1 (positive class)
-            if val == 1:                             
-                out_gdf.loc[index,'geometry'] = shape(shp)
-                out_gdf.loc[index,'img_id'] = image_id
-                out_gdf.loc[index,'file_name'] =  name
-                out_gdf.loc[index,'class'] =  cat
-                print(len(out_gdf)) 
-                index += 1
-            else:
-                continue
-
-out_gdf.to_file(driver = 'ESRI Shapefile', filename= geotiff_folder+"/"+cat+".shp")
+geotiff_folder = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run4/Tuinen"
+vectorizePrediction(geotiff_folder = geotiff_folder, prob_treshold=0.5, cat = 'TuinenRun4')
 
 # Write prediction statistics  
 # Confusion matrix: count total true negaties, false positives, false negatives and true positives
@@ -211,66 +175,5 @@ def CalculateConfusionMatrix(prediction_directory, gt_directory, csv_file):
         print(data_df)    
     data_df.to_csv(csv_file)
     return(data_df)
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9/"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run9/ConvolutionMatrixRun9.csv"
-results_run9 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run3/"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run3/ConvolutionMatrixRun3.csv"
-results_run3 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run7/"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run7/ConvolutionMatrixRun7.csv"
-results_run7 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run5/"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run5/ConvolutionMatrixRun5.csv"
-results_run5 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run11/"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run11/ConvolutionMatrixRun11.csv"
-results_run11 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run12/"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Images/Gelderland/2016/mask_modified"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/H5130/Predicions/Run12/ConvolutionMatrixRun12.csv"
-results_run12 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-
-
-
-
-
-
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run2/BGT"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run2/BGT/ConvolutionMatrixRun2.csv"
-results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-    
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run3/BGT"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run3/BGT/ConvolutionMatrixRun3.csv"
-results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-    
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run4/BGT"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run4/BGT/ConvolutionMatrixRun4.csv"
-results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-    
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run5/BGT"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run5/BGT/ConvolutionMatrixRun5.csv"
-results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-    
-prediction_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run6/BGT"
-gt_directory = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Images/Testing_BGT/mask"
-csv_file = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Predictions/Run6/BGT/ConvolutionMatrixRun6.csv"
-results_run2 = CalculateConfusionMatrix(prediction_directory = prediction_directory, gt_directory = gt_directory, csv_file = csv_file)
-    
 
 #https://www.statisticshowto.datasciencecentral.com/false-positive-definition-and-examples/

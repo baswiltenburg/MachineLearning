@@ -20,7 +20,7 @@ import h5py
 import rasterio as rio
 import random
 
-def unet(input_size = (512, 512, 3), drop_out = 0.0, lr = 0.00005):
+def unet(input_size = (512, 512, 3), drop_out = 0.0, lr = 0.0001):
     inputs = Input(input_size)
     conv1 = Conv2D(64, 3, activation = 'relu', padding = 'same', 
                                                kernel_initializer = 'he_normal'
@@ -143,129 +143,126 @@ def unet(input_size = (512, 512, 3), drop_out = 0.0, lr = 0.00005):
     return model
 
 
+
 def unet2 (input_shape = (512,512,3), lr = 0.0001):
     img_input = Input(input_shape)
 
     # Block 1
-    x = Conv2D(64, (3, 3), padding='same', name='block1_conv1')(img_input)
+    x = Conv2D(64, (3, 3), padding='same',kernel_initializer = 'he_normal', name='block1_conv1')(img_input)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(64, (3, 3), padding='same', name='block1_conv2')(x)
+    x = Conv2D(64, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block1_conv2')(x)
     x = BatchNormalization()(x)
     block_1_out = Activation('relu')(x)
 
-    x = MaxPooling2D()(block_1_out)
+    x = MaxPooling2D(pool_size=(2, 2))(block_1_out)
 
     # Block 2
-    x = Conv2D(128, (3, 3), padding='same', name='block2_conv1')(x)
+    x = Conv2D(128, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block2_conv1')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(128, (3, 3), padding='same', name='block2_conv2')(x)
+    x = Conv2D(128, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block2_conv2')(x)
     x = BatchNormalization()(x)
     block_2_out = Activation('relu')(x)
 
-    x = MaxPooling2D()(block_2_out)
+    x = MaxPooling2D(pool_size=(2, 2))(block_2_out)
 
     # Block 3
-    x = Conv2D(256, (3, 3), padding='same', name='block3_conv1')(x)
+    x = Conv2D(256, (3, 3), padding='same', kernel_initializer = 'he_normal',  name='block3_conv1')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(256, (3, 3), padding='same', name='block3_conv3')(x)
+    x = Conv2D(256, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block3_conv3')(x)
     x = BatchNormalization()(x)
     block_3_out = Activation('relu')(x)
 
-    x = MaxPooling2D()(block_3_out)
+    x = MaxPooling2D(pool_size=(2, 2))(block_3_out)
 
     # Block 4
-    x = Conv2D(512, (3, 3), padding='same', name='block4_conv1')(x)
+    x = Conv2D(512, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block4_conv1')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(512, (3, 3), padding='same', name='block4_conv2')(x)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)
-
-    x = Conv2D(512, (3, 3), padding='same', name='block4_conv3')(x)
+    x = Conv2D(512, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block4_conv2')(x)
     x = BatchNormalization()(x)
     block_4_out = Activation('relu')(x)
 
-    x = MaxPooling2D()(block_4_out)
+    x = MaxPooling2D(pool_size=(2, 2))(block_4_out)
 
     # Block 5
-    x = Conv2D(1024, (3, 3), padding='same', name='block5_conv1')(x)
+    x = Conv2D(1024, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block5_conv1')(x)
+    x = BatchNormalization()(x)
+    x = Activation('relu')(x)
+
+    x = Conv2D(1024, (3, 3), padding='same', kernel_initializer = 'he_normal', name='block5_conv2')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
     # UP 1
-    x = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same')(x)
+    x = Conv2DTranspose(512, (2, 2), strides=(2, 2), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    #MERGE
+    # Merge
     x = concatenate([x, block_4_out])
 
-    x = Conv2D(512, (3, 3), padding='same')(x)
+    x = Conv2D(512, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(512, (3, 3), padding='same')(x)
+    x = Conv2D(512, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
     
     # UP 2
-    x = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same')(x)
+    x = Conv2DTranspose(256, (2, 2), strides=(2, 2), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    #MERGE
+    # Merge
     x = concatenate([x, block_3_out])
 
-    x = Conv2D(256, (3, 3), padding='same')(x)
+    x = Conv2D(256, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(256, (3, 3), padding='same')(x)
+    x = Conv2D(256, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
     # UP 3
-    x = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same')(x)
+    x = Conv2DTranspose(128, (2, 2), strides=(2, 2), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
     # Merge
     x = concatenate([x, block_2_out])
 
-    x = Conv2D(128, (3, 3), padding='same')(x)
+    x = Conv2D(128, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(128, (3, 3), padding='same')(x)
+    x = Conv2D(128, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
     # UP 4
-    x = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same')(x)
+    x = Conv2DTranspose(64, (2, 2), strides=(2, 2), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
     # Merge
     x = concatenate([x, block_1_out])
 
-    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = Conv2D(64, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
 
-    x = Conv2D(64, (3, 3), padding='same')(x)
+    x = Conv2D(64, (3, 3), padding='same', kernel_initializer = 'he_normal')(x)
     x = BatchNormalization()(x)
     x = Activation('relu')(x)
-
-    x = Conv2D(2, (3, 3), padding='same')(x)
-    x = BatchNormalization()(x)
-    x = Activation('relu')(x)  
     
     x = Conv2D(1, 1, activation = 'sigmoid')(x) 
 
@@ -274,6 +271,7 @@ def unet2 (input_shape = (512,512,3), lr = 0.0001):
     model.compile(optimizer = Adam(lr = lr), loss = 'binary_crossentropy', metrics =['accuracy'])
 
     return model
+
 
 
 def unet_multiclass(n_classes, input_size = (512, 512, 3), drop_out = 0.0, lr = 0.00005):

@@ -27,7 +27,7 @@ bounding_boxes, ids = dc.getBoundingBoxesAreaExtent(area)
 ### OPTION 2. GENERATE BOUNDING BOXES BASED ON SHAPEFILE ###
 shp = "C:/Users/wba/Internship/Data/5_TrainingData/Gras/Shape/Handmatig/TestDataGrasBgt2.shp"
 bounding_boxes = dc.createImageBoundingBoxes(shapeLocation = shp)
-ids = list(range(len(bounding_boxes)))
+ids = list(range(len(bounding_boxes))) # Create ids of images
 
 ### DOWNLOAD CIR AND RGB IMAGES ###
 url_cir = WebMapService('https://geodata.nationaalgeoregister.nl/luchtfoto/infrarood/wms?&request=GetCapabilities&service=WMS')

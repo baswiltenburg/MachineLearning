@@ -20,6 +20,7 @@ import h5py
 import rasterio as rio
 import random
 
+# U-net architecture supplemented with drop-out operations
 def unet(input_size = (512, 512, 3), drop_out = 0.0, lr = 0.0001):
     inputs = Input(input_size)
     conv1 = Conv2D(64, 3, activation = 'relu', padding = 'same', 
@@ -142,8 +143,7 @@ def unet(input_size = (512, 512, 3), drop_out = 0.0, lr = 0.0001):
 
     return model
 
-
-
+# Unet architecture supplemented with batch normalization operations
 def unet2 (input_shape = (512,512,3), lr = 0.0001):
     img_input = Input(input_shape)
 
@@ -273,7 +273,7 @@ def unet2 (input_shape = (512,512,3), lr = 0.0001):
     return model
 
 
-
+# Unet architecture for multi-class segmentation (not implemented)
 def unet_multiclass(n_classes, input_size = (512, 512, 3), drop_out = 0.0, lr = 0.00005):
     inputs = Input(input_size)
     conv1 = Conv2D(64, 3, activation = 'relu', padding = 'same', 

@@ -6,9 +6,8 @@ import matplotlib.pyplot as plt
 from owslib.wms import WebMapService   
 import geopandas as gpd
 import matplotlib
-import matplotlib.pyplot as plt
 import shapely
-from shapely.geometry import MultiPolygon, Point
+from shapely.geometry import MultiPolygon, Point, Polygon, Point, LineString
 import ogr, osr
 from osgeo import gdal 
 import shutil
@@ -18,7 +17,6 @@ from rasterio import crs
 from rasterio import mask
 import pycrs
 from affine import Affine
-from rasterio.plot import show
 import tarfile
 import json
 import requests
@@ -31,44 +29,32 @@ class N2000_Data():
         self.image_size = image_size
         self.cell_size = cell_size
         self.epsg = epsg
-    
-    # Create a list of bounding boxes of habitat type features 
-    def getBoundingBoxes(self, shapeLocation):       
-        shape = gpd.read_file(shapeLocation)
-        bounding_box_list = []
-        areas_list = []
-        for i in range(len(shape)):
-            bb_feature = list(shape['geometry'][i].bounds)            
-            # Add the new boundingbox to the result list of bounding boxes
-            bounding_box_list.append(bb_feature)
-
-        bounding_box_areas = []
-        # Calculate the area of each generated bounding box (number of image patches per bounding box are based on the area of the bounding box)
-        for j in bounding_box_list:
-            x_meter = j[2] - j[0]
-            y_meter = j[3] - j[1]
-            area = x_meter * y_meter
-            bounding_box_areas.append(area)         
-        return(bounding_box_list, bounding_box_areas) 
-   
+     
+    # Create image bounding boxes based on a shapefile of ground-truth locations
+    # This funtion creates random intersection points with ground truth-polygons. The intersection point represent the center of 
+    # the image bounding box. The list of created bounding boxes can be used to download training images.
     def createImageBoundingBoxes(self, shapeLocation):
-        from shapely.geometry import Polygon, Point, LineString
+        # Read shapefile
         shape = gpd.read_file(shapeLocation)
-        polygons = []
-        areas = []
-        bb_image_patches = []
+        polygons = [] # List of polygons in shapefile
+        areas = [] # List of areas (the area of the polygons defines the number of generated bounding boxes)
+        bb_image_patches = [] # List of final bounding boxes
+        # Iterate over features (polygons) in shapefile 
         for gdf in shape.iterrows():
             poly = gdf[1]['geometry']
             polygons.append(poly)
             area = gdf[1]['SHAPE_Area']
             areas.append(area)
 
+        # Calculate the spatial extend of the image based on image size and resolution
         image_area = (self.image_size[0]*self.cell_size) * (self.image_size[1]*self.cell_size)
         result_coords = []
+        # Loop trough the polygons list and create random intersection points
         for i in range(len(polygons)):
             poly = polygons[i]
             min_x, min_y, max_x, max_y = poly.bounds
             area = areas[i]
+            # Calculate how many intersection points (number of samples) need to created based on the area of the polygon
             number_of_samples = int(np.ceil(area / image_area))  
             min_x, min_y, max_x, max_y = poly.bounds
             count = 1
@@ -76,81 +62,66 @@ class N2000_Data():
                 x = random.uniform(min_x, max_x)
                 x_line = LineString([(x, min_y), (x, max_y)])      
                 try:
+                    # Create intersecting line with polygon
                     x_line_intercept_min, x_line_intercept_max = x_line.intersection(poly).xy[1].tolist()
+                    # Pick a random point on this intersection line and covert it to coordinates (x,y)
                     y = random.uniform(x_line_intercept_min, x_line_intercept_max)
                     c = (x,y)
                     result_coords.append(c)
+                    # Convert intersection point (center of bounding box) to image bounding boxes.
                     xmin = x - ((self.image_size[0]/2)* self.cell_size)
                     xmax = x + ((self.image_size[0]/2)* self.cell_size)
                     ymin = y - ((self.image_size[1]/2)* self.cell_size)
                     ymax = y + ((self.image_size[1]/2)* self.cell_size)
                     bb_image_patch = [xmin, ymin, xmax, ymax]
-                    bb_image_patches.append(bb_image_patch) 
+                    # Add bounding box to result list of bounding boxes
+                    bb_image_patches.append(bb_image_patch)  
                     count += 1
                 except:
                     'Error: continue'
                     continue
         return (bb_image_patches)
     
-    
+    # Function to download training images based om image bounding boxes (above function) and (wms)server 
+    # layer is the layer-name of the wms-server, so both ortho as well as CIR can be downloaded
     def downloadTrainingImages(self, bounding_box, server, layer, store_path, name = "image"):
+        # Set coordinate projection systems
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
         proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()
-
+        # Get data from wms server
         wms = server
         data = wms.getmap(layers=[layer], styles=[], srs=('EPSG:'+str(self.epsg)), crs=('EPSG:'+str(self.epsg)), bbox=bounding_box,  size=self.image_size, format='image/tiff', transparent=True, stream = True) 
 
-        # Define filenames
+        # Define filenames and write image to disk
         filename = f"{store_path}/{name}" 
-
         out = open(filename, 'wb')
         out.write(data.read())
         out.close()  
 
+        # Geo-reference the image based on projection system and bounding box coordinates
         transform = Affine(self.cell_size, 0.0, bounding_box[0], 0.0, -self.cell_size, bounding_box[3])
         with rio.open(filename, mode = 'r+') as src:
             src.transform = transform
             src.crs = crs
-            src.close()
-            
-        # List written files, update projetion and move tile to spatial position (USING GDAL INSTEAD OF RASTERIO)
-        # for file in files:
-        #     # SET PROJECTION AND MOVE TILE TO POSITION #
-        #     dataset = gdal.Open(file,1)
-            
-        #     # Get raster projection
-        #     srs = osr.SpatialReference()
-        #     srs.ImportFromEPSG(self.epsg)
-        #     dest_wkt = srs.ExportToWkt()
-            
-        #     # Set projection
-        #     dataset.SetProjection(dest_wkt)
-            
-        #     gt =  dataset.GetGeoTransform()
-        #     gtl = list(gt)
-        #     gtl[0] = bb_image_patches[i][0]
-        #     gtl[1] = self.cell_size
-        #     gtl[3] = bb_image_patches[i][3]
-        #     gtl[5] = (-1 * self.cell_size)
-        #     dataset.SetGeoTransform(tuple(gtl))
-        #     dataset = None                
+            src.close()              
 
+    # Download ahn3 images, based on servr and bounding box.
     def downloadAhn3Images(self, server, layer, bounding_box, dest_folder, name = 'unknown_ahn3'):
+        # Create service ULR
         bb_param = f"{bounding_box[0]},{bounding_box[1]},{bounding_box[2]},{bounding_box[3]}"
         serviceUrl = f"{server}?service=wcs&request=GetCoverage&format=geotiff_float32&BoundingBox={bb_param},urn:ogc:def:crs:EPSG::{str(self.epsg)}&width={str(self.image_size[0])}&height={str(self.image_size[0])}&version=1.0.0&coverage={layer}"
-        
+        # Download AHN images
         with requests.Session() as session:
             try:
                 response = session.get(serviceUrl, headers={'Content-type': "image/tif"})
-
-                if response.status_code == 200:
+                if response.status_code == 200: # request is good
                     result = Image.open(BytesIO(response.content))
                     if result is not None:
                         if result.mode == 'P':
                             result = result.convert('RGB')
             except Exception as ex:
                     raise ex
-
+        # Convert result to numpy array, set projection  and georeference
         result = np.array(result)
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
         transform = Affine(self.cell_size, 0.0, bounding_box[0], 0.0, -self.cell_size, bounding_box[3])
@@ -165,13 +136,13 @@ class N2000_Data():
                 src.close()
         else:
             print('Location not covered by AHN3.. No results written.')
-                    
+
+    # Create raster mask based on image and polygon                
     def createRasterMasks(self, store_path, store_path_mask, shapeLocation):
         shape = gpd.read_file(shapeLocation)
         shape.loc[:,'Dissolve'] = 1
         files = [f for f in listdir(store_path) if isfile(join(store_path, f))]
         crs = rio.crs.CRS({"init": ("epsg:"+str(self.epsg))}) 
-        #proj = pycrs.parse.from_epsg_code(self.epsg).to_proj4()
         count = 0
         for file in files:
             if file.endswith(".tif"):
@@ -235,13 +206,12 @@ class N2000_Data():
                         print(file_path)
                         #print("Trainig image removed from dataset")
                         continue
-                    
+
+    # Convert raster mask (function above) to binary raster mask (only 1 channel instead of 3)            
     def convertMaskToBinaryMask(self, src_folder, dst_folder):
-        ############ CONVERT 3 DIMENSIONAL MASK INTO 2-DIMENSIONAL BINARY MASK ##############
         # src_folder: Folder with tif-files of 3-dimensional mask
         # dst_folder: Folder of destination
-        
-        #epsg = 28992
+
         def getProj4(epsg):            
             try:
                 crs_metadata = pycrs.parse.from_epsg_code(epsg).to_proj4()
@@ -409,10 +379,13 @@ class N2000_Data():
             for file in files:
                 file = folder_path + "/" + file
                 tar_handle.add(file)
-                
+
+    # Save the metadata of downloaded training images in json-file (very important to georeference them later on)       
     def saveImageDataToJson(self, image_directory, bounding_boxes_images, file_name):
-        ############ SAVE BOUNDING BOXES AND NAMES IN JSON ##############
-        import json
+        # Image_directory is the folder of the downloaded images
+        # Bounding_boxes_images is the list of bounding boxes
+        # filename is desired name of json-file
+        
         image_ids = []
         for filename in os.listdir(image_directory): 
             filename_split = filename.split("_")
@@ -427,7 +400,7 @@ class N2000_Data():
             image_id = image_ids[i]
             dictionary_data[image_id] = {"bounding_box": bounding_boxes_images[i], "images_size" : self.image_size, "pixel_size" : self.cell_size, "epsg": str(self.epsg)}
 
-        # save json
+        # save json to disk
         store_json = image_directory + "/" + file_name
         with open (store_json, 'w') as fp:
             json.dump(dictionary_data, fp)
@@ -472,7 +445,7 @@ class N2000_Data():
                                     dst.write_band(id, layer)
 
      # Create 5-or 6-dimensional image from CIR and RGB image
-    def CreateMultiDimensionalImage(self, path_rgb_data, path_cir_data, path_height_data,  dest_folder, path_slope_data = None, name = '6channel_data.tif'):
+    def CreateMultiDimensionalImage(self, path_rgb_data, path_cir_data, path_height_data, dest_folder, path_slope_data = None, name = '6channel_data.tif'):
         # path_rgb_data = folder with rgb images
         # path_cir_data = folder with cir images (should have the same id's and extents)
         # path_height_data = folder with height images
@@ -549,8 +522,7 @@ class N2000_Data():
                         dst.write_band(id, layer)
                         
                                     
-    # Download entire area
-    #area = [230378.510, 479586.273, 232983.850,  482326.797]
+    # Download entire area based on bounding box extent
     def getBoundingBoxesAreaExtent(self, area):
         # area is a bounnding box of a entire study area ([xmin, ymin, xmax, ymax])
         # Function returns a list of (inner-)bounding boxes of specified size

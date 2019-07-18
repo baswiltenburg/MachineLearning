@@ -19,7 +19,7 @@ class DEM_Processing(object):
         self.cell_size = cell_size
         self.epsg = epsg
 
-
+    
     def createHeightModel(self, dsm, dtm):
         '''Calculate height from integer arrays'''
         # Make all values positive by adding 1000 meter

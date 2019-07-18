@@ -23,8 +23,10 @@ class N2000_DataPreparation():
         for item in file_list.items:
             block_blob.get_blob_to_path(blobname, item, (path_training_data+"/"+item))
 
+    # Read images from folder and write them to a numpy array.
+    # If mask == True, the folder contains complete training data with both training images as well as raster mask images. 
+    # by setting mask == true, images which ends on '_mask' will be ignored in creating the numpy array. 
     def ImagesToArray(self, img_folder, mask = True):
-        ### READ IMAGES IN 3 DIMENSIONAL NUMPY ARRAY ###
         tiles = os.listdir(img_folder)
         array_list = []
         for tile in tiles:
@@ -44,7 +46,7 @@ class N2000_DataPreparation():
         result_array = np.array(array_list) 
         return (result_array)
             
-    # RENAME IMAGES: REMOVE THE WORD 'CHECK'  
+    # Rename 'check images': remove the name 'check' in image filename 
     def RenameCheckImages(self, path_training_data):
         for filename in os.listdir(path_training_data): 
             filename_split = filename.split("_")
@@ -54,14 +56,13 @@ class N2000_DataPreparation():
             else:
                 continue
     
-    # GENERATE FOLDER OF CORRECT TRAINING DATA (ORIGINAL IMAGE PLUS ITS MASK)
-    # CHECK IMAGES (WITH MASKED POLYGON BOUNDARIES) ARE REPLACED BY ITS ORIGINAL IMAGE
-    # MASK IMAGES ARE ADDED TO THE TRAININGSET FOLDER
+    # This function creates a folder with all the training data (both traning image as well as raster mask)
+    # Check images are replaces by its original image and mask images are added to the folder
     def PrepareTrainingData(self, path_training_data, path_mask_data, check_images = False, path_original_data = None):
-        # Copy the mask image from the mask-folder to the training folder when image is in trainingfolder 
-        # Replace check image (with masked countour lines, with original image)
+        # Copy the mask image from the mask-folder to the training folder, only when image is in trainingfolder 
         # If check images == True, training data are checked images (with boundary mask) and need to be replaced by the original data
-        # Folder of original data need to be specified
+        # in this case, the folder of original data need to be specified as well.
+        # path_training_data is folder location of training images or check images
 
         for filename in os.listdir(path_training_data): 
             filename_split = filename.split("_")            
@@ -101,7 +102,7 @@ class N2000_DataPreparation():
                 continue
                 
     # REMOVE IMAGES FROM TRAINING DATA OF WHICH ITS BINARY MASK IMAGE IS NOT OF CORRECT SHAPE
-    # REMOVE IMAGES WITHOUT MASK 
+    # REMOVE IMAGES WITHOUT RASTER MASK
     def RemoveInvalidData(self, path_training_data):
         wrong_items = []
         # Create list of mask files which do not have a correct shape
